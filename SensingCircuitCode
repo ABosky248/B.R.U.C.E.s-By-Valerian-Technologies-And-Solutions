@@ -1,0 +1,28 @@
+const int sensorPin = A0; //Connect pressure sensor output 
+const int outPin = 9;
+
+float sensVal = 0; //Current sensor value 
+float preSensVal = 0; //Previous sensor value 
+bool initialized = false; //Make sure it starts off
+
+const float alpha: 0.1;
+const float slopeThresh = 0.01; //How much the signal needs to change by to read as rise or fall
+
+void setup() {
+  pinMode(outputPin, OUTPUT);
+}
+
+void loop() {
+  int raw = analogRead(sensorPin); //Read the output of the sensor
+
+float slope = sensVal - preSensVal;
+
+if (slope> slopeThresh) {
+  digitalWrite(outPin, HIGH);
+} else if (slope < -slopeTHresh){
+  digitalWrite(outPin, LOW);
+}
+
+prevSensVal = sensVal;
+
+delay(10);
