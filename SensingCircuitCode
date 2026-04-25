@@ -5,10 +5,11 @@ float sensVal = 0; //Current sensor value
 float preSensVal = 0; //Previous sensor value 
 bool initialized = false; //Make sure it starts off
 
-const float alpha = 0.1;
-const float slopeThresh = 0.01; //How much the signal needs to change by to read as rise or fall
+const float alpha = 0.01;
+const float slopeThresh = 0.03; //How much the signal needs to change by to read as rise or fall
 
 void setup() {
+  Serial.begin(9600);
   pinMode(outPin, OUTPUT);
 }
 
@@ -26,6 +27,8 @@ void loop() {
   }
 
   preSensVal = sensVal;
+
+  Serial.println(raw);
 
   delay(10);
 }
