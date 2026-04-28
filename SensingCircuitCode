@@ -1,34 +1,33 @@
-const int sensorPin = A0; //Connect pressure sensor output 
+#include <TimerOne.h>
+
+const int sensorPin = A0;
 const int outPin = 9;
 
-float sensVal = 0; //Current sensor value 
-float preSensVal = 0; //Previous sensor value 
-bool initialized = false; //Make sure it starts off
+float sensVal = 0;
+float preSensVal = 0;
 
 const float alpha = 0.01;
-const float slopeThresh = 0.03; //How much the signal needs to change by to read as rise or fall
+const float slopeThresh = 0.03;
 
 void setup() {
   Serial.begin(9600);
   pinMode(outPin, OUTPUT);
+  Timer1.initialize(50000);      // 20 Hz period
+  Timer1.pwm(outPin, 7);         // about 0.7% duty on 0-1023 scale
 }
 
 void loop() {
-  int raw = analogRead(sensorPin); //Read the output of the sensor
-
+  int raw = analogRead(sensorPin);
   sensVal = alpha * raw + (1 - alpha) * sensVal;
-
   float slope = sensVal - preSensVal;
 
   if (slope > slopeThresh) {
-    digitalWrite(outPin, HIGH);
-  } else if (slope < -slopeThresh) {
+    Timer1.pwm(outPin, 7);
+  } else {
     digitalWrite(outPin, LOW);
   }
 
   preSensVal = sensVal;
-
   Serial.println(raw);
-
   delay(10);
 }
