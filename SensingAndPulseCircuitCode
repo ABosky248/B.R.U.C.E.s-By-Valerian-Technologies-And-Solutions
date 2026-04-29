@@ -1,5 +1,6 @@
 #include <TimerOne.h>
 
+const int inPin = D2; //Digital input pin connected to the switch
 const int sensorPin = A0;
 const int outPin = 9;
 
@@ -17,6 +18,12 @@ void setup() {
 }
 
 void loop() {
+  if (digitalRead(inPin) == Low {
+    digitalWrite(outPin, LOW);
+    Serial.println("OFF");
+    delay(10);
+    return;
+  }
   int raw = analogRead(sensorPin);
   sensVal = alpha * raw + (1 - alpha) * sensVal;
   float slope = sensVal - preSensVal;
