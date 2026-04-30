@@ -18,7 +18,7 @@ void setup() {
 }
 
 void loop() {
-  if (digitalRead(inPin) == Low {
+  if (digitalRead(inPin) == LOW {
     digitalWrite(outPin, LOW);
     Serial.println("OFF");
     delay(10);
