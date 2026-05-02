@@ -1,6 +1,5 @@
 #include <TimerOne.h>
 
-const int inPin = D2; //Digital input pin connected to the switch
 const int sensorPin = A0;
 const int outPin = 9;
 
@@ -8,29 +7,43 @@ float sensVal = 0;
 float preSensVal = 0;
 
 const float alpha = 0.01;
-const float slopeThresh = 0.03;
+const float riseThresh = 0.03;   // trigger when pressure rises by this much -> change for each patient
+
+volatile bool pulseEnabled = false;
+
+void pulseISR() {
+  if (!pulseEnabled) {
+    digitalWrite(outPin, LOW);
+    return;
+  }
+
+  digitalWrite(outPin, HIGH);
+  delayMicroseconds(352);
+  digitalWrite(outPin, LOW);
+}
 
 void setup() {
   Serial.begin(9600);
   pinMode(outPin, OUTPUT);
+  digitalWrite(outPin, LOW);
+
   Timer1.initialize(50000);      // 20 Hz period
-  Timer1.pwm(outPin, 7);         // about 0.7% duty on 0-1023 scale
+  Timer1.attachInterrupt(pulseISR);
+  Timer1.stop();
 }
 
 void loop() {
-  if (digitalRead(inPin) == LOW {
-    digitalWrite(outPin, LOW);
-    Serial.println("OFF");
-    delay(10);
-    return;
-  }
   int raw = analogRead(sensorPin);
-  sensVal = alpha * raw + (1 - alpha) * sensVal;
-  float slope = sensVal - preSensVal;
 
-  if (slope > slopeThresh) {
-    Timer1.pwm(outPin, 7);
+  sensVal = alpha * raw + (1 - alpha) * sensVal;
+  float rise = sensVal - preSensVal;   // positive when pressure rises
+
+  if (rise > riseThresh) {
+    pulseEnabled = true;
+    Timer1.start();
   } else {
+    pulseEnabled = false;
+    Timer1.stop();
     digitalWrite(outPin, LOW);
   }
 
