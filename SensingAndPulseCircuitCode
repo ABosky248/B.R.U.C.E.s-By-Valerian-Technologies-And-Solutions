@@ -7,8 +7,11 @@ float sensVal = 0;
 float preSensVal = 0;
 
 const float alpha = 0.01;
-const float riseThresh = 0.03;      // trigger when pressure rises by this much
-const float zeroFlowThresh = 2.0;   // minimum raw pressure to consider flow present (tune per patient)
+
+// ---- Paste the values from calibration here ----
+const float riseThresh = 0.025;     // example; replace with your value
+const float zeroFlowThresh = 3.0;   // example; replace with your value
+// ------------------------------------------------
 
 volatile bool pulseEnabled = false;
 
@@ -17,7 +20,6 @@ void pulseISR() {
     digitalWrite(outPin, LOW);
     return;
   }
-
   digitalWrite(outPin, HIGH);
   delayMicroseconds(352);
   digitalWrite(outPin, LOW);
@@ -28,7 +30,7 @@ void setup() {
   pinMode(outPin, OUTPUT);
   digitalWrite(outPin, LOW);
 
-  Timer1.initialize(50000);      // 20 Hz period
+  Timer1.initialize(50000);      // 20 Hz
   Timer1.attachInterrupt(pulseISR);
   Timer1.stop();
 }
@@ -37,10 +39,10 @@ void loop() {
   int raw = analogRead(sensorPin);
 
   sensVal = alpha * raw + (1 - alpha) * sensVal;
-  float rise = sensVal - preSensVal;   // positive when pressure rises
+  float rise = sensVal - preSensVal;   // positive on inhale
 
-  // Only trigger if pressure is above zero-flow threshold AND rises above threshold
-  if (sensVal > zeroFlowThresh && rise > riseThresh) {
+  // Only trigger on INHALE (positive rise) and only when above zero-flow
+  if (sensVal > zeroFlowThresh && rise > riseThresh && rise > 0) {
     pulseEnabled = true;
     Timer1.start();
   } else {
