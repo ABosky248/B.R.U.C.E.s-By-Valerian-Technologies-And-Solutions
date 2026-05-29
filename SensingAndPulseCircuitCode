@@ -7,7 +7,8 @@ float sensVal = 0;
 float preSensVal = 0;
 
 const float alpha = 0.01;
-const float riseThresh = 0.03;   // trigger when pressure rises by this much -> change for each patient
+const float riseThresh = 0.03;      // trigger when pressure rises by this much
+const float zeroFlowThresh = 2.0;   // minimum raw pressure to consider flow present (tune per patient)
 
 volatile bool pulseEnabled = false;
 
@@ -38,7 +39,8 @@ void loop() {
   sensVal = alpha * raw + (1 - alpha) * sensVal;
   float rise = sensVal - preSensVal;   // positive when pressure rises
 
-  if (rise > riseThresh) {
+  // Only trigger if pressure is above zero-flow threshold AND rises above threshold
+  if (sensVal > zeroFlowThresh && rise > riseThresh) {
     pulseEnabled = true;
     Timer1.start();
   } else {
