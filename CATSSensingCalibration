@@ -1,0 +1,155 @@
+#include <TimerOne.h>
+
+const int sensorPin = A0;
+const int outPin = 9;
+
+float sensVal = 0;
+float preSensVal = 0;
+const float alpha = 0.01;
+
+// Timing
+const unsigned long NO_FLOW_TIME_MS   = 30000UL;
+const unsigned long COUNTDOWN_TIME_MS = 20000UL;
+const unsigned long CPAP_TIME_MS      = 60000UL;
+
+unsigned long phaseStartTime = 0;
+int phase = 0; // 0=no-flow, 1=countdown, 2=cpap, 3=done
+
+bool cpapOn = false;
+
+// Simple stats
+float noFlowMax = 0;
+float flowMin = 1e9;
+float flowRiseSum = 0;
+int flowRiseCount = 0;
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(outPin, OUTPUT);
+  digitalWrite(outPin, LOW);
+
+  Timer1.initialize(50000);
+  Timer1.attachInterrupt(pulseISR);
+  Timer1.stop();
+
+  Serial.println(F("=== Simple Threshold Calibration (NO PULSES) ==="));
+  Serial.println(F("Sequence:"));
+  Serial.println(F("  30s NO CPAP (breathe normally, no flow)"));
+  Serial.println(F("  20s COUNTDOWN (plug in CPAP)"));
+  Serial.println(F("  60s CPAP ON (breathe normally)"));
+  Serial.println(F("Pulses are DISABLED during calibration."));
+  Serial.println(F("Press any key to start..."));
+  while (!Serial.available()) delay(50);
+  Serial.read();
+
+  phase = 0;
+  phaseStartTime = millis();
+  cpapOn = false;
+
+  Serial.println(F(">>> NO CPAP (30s) - breathe normally"));
+}
+
+void loop() {
+  unsigned long now = millis();
+  unsigned long el = now - phaseStartTime;
+
+  // Phase transitions
+  if (phase == 0 && el >= NO_FLOW_TIME_MS) {
+    phase = 1;
+    phaseStartTime = now;
+    Serial.println(F(">>> COUNTDOWN (20s) - plug in CPAP"));
+  }
+  else if (phase == 1 && el >= COUNTDOWN_TIME_MS) {
+    phase = 2;
+    phaseStartTime = now;
+    cpapOn = true;
+    Serial.println(F(">>> CPAP ON (60s) - breathe normally"));
+  }
+  else if (phase == 2 && el >= CPAP_TIME_MS) {
+    phase = 3;
+    cpapOn = false;
+    Timer1.stop();
+    digitalWrite(outPin, LOW);
+    printResults();
+    Serial.println(F("=== Done ==="));
+    while (1) delay(1000); // stop
+  }
+
+  // Countdown messages
+  if (phase == 1) {
+    int rem = (COUNTDOWN_TIME_MS - el) / 1000;
+    if (rem >= 0 && rem % 5 == 0) {
+      Serial.print(F("Countdown: "));
+      Serial.print(rem);
+      Serial.println(F(" s"));
+    }
+  }
+
+  // CPAP ON progress
+  if (phase == 2) {
+    int rem = (CPAP_TIME_MS - el) / 1000;
+    if (rem >= 0 && rem % 15 == 0) {
+      Serial.print(F("CPAP ON: "));
+      Serial.print(rem);
+      Serial.println(F(" s"));
+    }
+  }
+
+  // Sensor read
+  int raw = analogRead(sensorPin);
+  sensVal = alpha * raw + (1 - alpha) * sensVal;
+  float rise = sensVal - preSensVal;
+
+  // Update stats
+  if (phase == 0) { // no flow
+    if (sensVal > noFlowMax) noFlowMax = sensVal;
+  }
+  else if (phase == 2 && rise > 0) { // CPAP on, only positive rises
+    if (sensVal < flowMin) flowMin = sensVal;
+    flowRiseSum += rise;
+    flowRiseCount++;
+  }
+
+  // NO PULSES during calibration (just for safety)
+  // Do NOT enable Timer1 or outPin here.
+
+  preSensVal = sensVal;
+  delay(10);
+}
+
+void pulseISR() {
+  // This is never called during calibration because Timer1 is stopped
+  digitalWrite(outPin, LOW);
+}
+
+void printResults() {
+  Serial.println(F("\n=== Results ==="));
+  Serial.print(F("No-flow max filtered pressure: "));
+  Serial.println(noFlowMax, 3);
+
+  if (flowRiseCount > 0) {
+    Serial.print(F("CPAP flow min filtered pressure: "));
+    Serial.println(flowMin, 3);
+
+    float avgRise = flowRiseSum / flowRiseCount;
+    Serial.print(F("CPAP flow avg positive rise: "));
+    Serial.println(avgRise, 4);
+
+    Serial.println(F("\nSuggested thresholds for your MAIN code:"));
+    float zeroFlowThresh = (noFlowMax + flowMin) / 2.0;
+    float riseThresh = avgRise * 0.5;
+    if (riseThresh < 0.01) riseThresh = 0.01;
+
+    Serial.print(F("const float zeroFlowThresh = "));
+    Serial.print(zeroFlowThresh, 2);
+    Serial.println(F(";"));
+
+    Serial.print(F("const float riseThresh = "));
+    Serial.print(riseThresh, 4);
+    Serial.println(F(";"));
+
+    Serial.println(F("\nCopy these two constants into your main code."));
+  } else {
+    Serial.println(F("Not enough CPAP flow data."));
+  }
+}
