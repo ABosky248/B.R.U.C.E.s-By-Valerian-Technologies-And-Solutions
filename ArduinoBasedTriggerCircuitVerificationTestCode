@@ -1,0 +1,43 @@
+// ---- Pin definitions ----
+const int sensorPin = A0;
+const int outPin = 9;  // will output HIGH (5V) during inhale, LOW (0V) otherwise
+
+// ---- Filtering ----
+float sensVal = 0.0;
+float preSensVal = 0.0;
+const float alpha = 0.01;  // exponential moving average smoothing
+
+// ---- Calibration values (replace with your calibrated values) ----
+const float riseThresh = 0.025;   // trigger when pressure rises by this much
+const float zeroFlowThresh = 3.0; // sensor value above which there is CPAP flow
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(outPin, OUTPUT);
+  digitalWrite(outPin, LOW);  // start with 0V
+}
+
+void loop() {
+  int raw = analogRead(sensorPin);
+
+  // Low-pass filter to smooth sensor readings
+  sensVal = alpha * raw + (1.0f - alpha) * sensVal;
+  float rise = sensVal - preSensVal;  // positive on inhale
+
+  // Inhale conditions:
+  // 1) CPAP flow present (sensor above zero-flow threshold)
+  // 2) Pressure rising
+  // 3) Rise exceeds threshold
+  bool inhaleDetected = (sensVal > zeroFlowThresh) && (rise > riseThresh) && (rise > 0.0f);
+
+  if (inhaleDetected) {
+    digitalWrite(outPin, HIGH);  // 5V during inhale
+  } else {
+    digitalWrite(outPin, LOW);   // 0V during exhalation or no flow
+  }
+
+  preSensVal = sensVal;
+
+  Serial.println(raw);
+  delay(10);
+}
