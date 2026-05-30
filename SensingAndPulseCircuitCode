@@ -10,8 +10,8 @@ float preSensVal = 0.0;
 const float alpha = 0.01;  // exponential moving average smoothing
 
 // ---- Calibration values (replace with your calibrated values) ----
-const float riseThresh = 0.025;   // trigger when pressure rises by this much
-const float zeroFlowThresh = 3.0; // sensor value above which there is CPAP flow
+const float riseThresh = 0.0127;   // trigger when pressure rises by this much
+const float zeroFlowThresh = 256; // sensor value above which there is CPAP flow
 // ---------------------------------------------------------------
 
 // ---- Pulse timing ----
@@ -88,3 +88,4 @@ void loop() {
   Serial.println(raw);
   delay(10);
 }
+
